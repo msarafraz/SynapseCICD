@@ -1,0 +1,17 @@
+{
+	"name": "05_LoadSingleCompressFile_Polybase",
+	"properties": {
+		"content": {
+			"query": "\n--Load compressed text files\n-- loading data to Synapse SQL Pool over a compressed single file can be a bottleneck in terms of data loading performance. \n\n--Credential used to authenticate to External Data Source \nCREATE DATABASE SCOPED CREDENTIAL AzureStorageCredential\nWITH\n    IDENTITY = 'user',\n    SECRET = 'Fdnk0yeqCyV4DvzMJ0yGWGmLn33ooJ0hqCJDE9L7iVBRjaLp8JAJT9avwaLciBelxIsFwG5Z9OKqWxsAOfGF2g=='\n;\n\n\n-- location of data\nCREATE EXTERNAL DATA SOURCE BlobStorage\nWITH\n(\n    TYPE = Hadoop,\n    LOCATION = 'wasbs://blobroot@asadatalakemarysynapse.blob.core.windows.net/',\n    CREDENTIAL = [AzureStorageCredential]\n);\n\n\n--We will load one file which a fact table. This will be a compressed file.\nCREATE EXTERNAL FILE FORMAT compressedcsv\nWITH ( \n    FORMAT_TYPE = DELIMITEDTEXT,\n    FORMAT_OPTIONS ( \n\tFIELD_TERMINATOR = ',',\n\tDATE_FORMAT = 'yyyy-MM-dd HH:mm:ss.fffffff',\n        STRING_DELIMITER = '',\n        USE_TYPE_DEFAULT = False,\n\t\tFIRST_ROW = 2\n    ),\n    DATA_COMPRESSION = 'org.apache.hadoop.io.compress.GzipCodec'\n);\n\n--Create a schema for external tables\nCREATE SCHEMA [NYTaxiSTG];\n\n--Create the external table\n--External table referencing the single compressed file\nCREATE EXTERNAL TABLE [NYTaxiSTG].[TripsCompressed]\n(\n    [VendorID] varchar(10) NOT NULL,\n    [tpep_pickup_datetime] datetime2 NOT NULL,\n    [tpep_dropoff_datetime] datetime2 NOT NULL,\n    [passenger_count] int NOT NULL,\n    [trip_distance] float NOT NULL,\n    [RateCodeID] int NULL,\n    [store_and_fwd_flag] varchar(3) NULL,\n    [PULocationID] int NULL,\n    [DOLocationID] int NULL,\n    [payment_type] int NULL,\n    [fare_amount] money NULL,\n    [extra] money NULL,\n    [mta_tax] money NULL,\n    [tip_amount] money NULL,\n    [tolls_amount] money NULL,\n    [improvement_surcharge] money NULL,\n    [total_amount] money NULL\n)\nWITH\n(\n    LOCATION = 'DemoFiles/TripsCompressed.gz',\n    DATA_SOURCE = BlobStorage,\n    FILE_FORMAT = compressedcsv,\n    REJECT_TYPE = value,\n    REJECT_VALUE = 0\n);\n\n--Create heap table for faster initial data loading\nCREATE SCHEMA [NYCTaxi];\n\nCREATE TABLE [NYCTaxi].[TripsCompressed]\nWITH\n(\n\tHEAP,\n    DISTRIBUTION = ROUND_ROBIN\n)\nAS SELECT * FROM [NYTaxiSTG].[TripsCompressed]\nOPTION (LABEL = 'CTAS:TripsCompressed')\n;\n\n-- Monitor to see number of files\n/*\nWould scaling the DW to DWU30000c increase load performance in this case? \nThe load performance will never be increased because there is only a single compressed file being copied where multiple readers are not taking \na parallel load for compressed files.\n*/ \n--Count of rows\nSELECT COUNT(*) FROM [NYCTaxi].[TripsCompressed]\n\n--Preview after load\nSELECT TOP 1000 * FROM [NYCTaxi].[TripsCompressed]",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "wplussynapsedw",
+				"poolName": "wplussynapsedw"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}

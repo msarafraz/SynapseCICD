@@ -1,0 +1,17 @@
+{
+	"name": "11_CreateSTGTablesForPipelineLoad",
+	"properties": {
+		"content": {
+			"query": "-- We want to load it with Copy , we don't need external table\nCREATE TABLE [NYTaxiSTG].[TaxiZones]\n(\n    [LocationID] int NOT NULL,\n    [Borough] varchar(30) NOT NULL,\n\t[Zone] varchar(100) NOT NULL,\n\t[service_zone] varchar(30) NOT NULL\n)\nwith \n(\ndistribution = ROUND_ROBIN ,\nHEAP\n);\n\n\n\n\n-- we want to load it with polybase, we need external table\n-- we don't need to create a staging table but we can\n\nCREATE EXTERNAL TABLE [NYTaxiSTG].[RateCode]\n(\n    [RateCodeID] int NOT NULL,\n    [Description] varchar(30) NOT NULL\n)\nWITH\n(\n    LOCATION = 'nyctaxistaging/Dimension/RateCode.csv',\n    DATA_SOURCE = NYTBlob,\n    FILE_FORMAT = csvdimension,\n    REJECT_TYPE = value,\n    REJECT_VALUE = 0\n);\n\n\n-- We want to use stored procedure\nCREATE TABLE [NYTaxiSTG].[PaymentType]\n(\n    [PaymentTypeID] varchar(40)  NULL,\n    [PaymentType] varchar(40) \n)\nwith \n(\ndistribution = ROUND_ROBIN ,\nHEAP\n);\n\n\n\nCREATE PROC [NYTaxiSTG].[sp_copyPaymentType]\nAS\nBEGIN\n COPY INTO [NYTaxiSTG].[PaymentType]\nFROM 'https://asadatalakemarysynapse.blob.core.windows.net/blobroot/nyctaxistaging/Dimension/PaymentType.csv'\nWITH\n(\n\tCREDENTIAL=(IDENTITY= 'Shared Access Signature', SECRET='?sv=2020-08-04&ss=bfqt&srt=sco&sp=rwdlacupx&se=2025-01-02T04:52:41Z&st=2022-03-14T19:52:41Z&spr=https&sig=X20J49nHcBxqCVZ7KBtrNI4FB3UWtE7vFf4iV55tnL8%3D'),\n\tFILE_TYPE = 'CSV'\n\t,MAXERRORS = 0\n\t,IDENTITY_INSERT = 'OFF'\n\t)\nEND\n\n",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "wplussynapsedw",
+				"poolName": "wplussynapsedw"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}

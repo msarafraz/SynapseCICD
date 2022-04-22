@@ -1,0 +1,17 @@
+{
+	"name": "PolybaseHashLoadMonitoring",
+	"properties": {
+		"content": {
+			"query": "--Monitor how the data is being read from external files and\n--how that data is being converted to SQL data type format and how it is being written to Synapse SQL Pool distributions\nSelect * \nFROM sys.dm_pdw_dms_workers dw\nJOIN sys.dm_pdw_exec_requests r \nON r.request_id = dw.request_id\nWHERE r.[label] = 'CTAS:HashPaymentType'\n\n\n--Monitor how many writers were used to distribute the data\nSelect * \nFROM sys.dm_pdw_dms_workers dw\nJOIN sys.dm_pdw_exec_requests r \nON r.request_id = dw.request_id\nWHERE r.[label] = 'CTAS:HashPaymentType'\nand type = 'WRITER' and bytes_processed <> 0",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "wplussynapsedw",
+				"poolName": "wplussynapsedw"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}

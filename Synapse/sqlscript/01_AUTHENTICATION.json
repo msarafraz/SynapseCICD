@@ -1,0 +1,17 @@
+{
+	"name": "01_AUTHENTICATION",
+	"properties": {
+		"content": {
+			"query": "-- AUTHENTICATION\n-- Connect to master database and create a login\nUse Master;\nCREATE LOGIN SQLDWLogin WITH PASSWORD = 'Password@1';\nCREATE USER SQLDWuser FOR LOGIN SQLDWLogin;\n\n-- Connect to the user database(DW) and create a database user\nCREATE USER SQLDWuser FOR LOGIN SQLDWLogin;",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "wplussynapsedw",
+				"poolName": "wplussynapsedw"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}

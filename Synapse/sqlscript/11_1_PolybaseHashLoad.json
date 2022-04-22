@@ -1,0 +1,17 @@
+{
+	"name": "11_1_PolybaseHashLoad",
+	"properties": {
+		"content": {
+			"query": "--Create Hash distributed table on Payment_type column\n--There are only 4 unique values for Payment_type in the .csv file. \n--The .csv file is being referenced through the external table [NYTaxiSTG].[Trips]\n--Cluster columnstore tables begin to achieve optimal compression once there is more than 60 million rows. \n--For small lookup tables, less than 60 million rows, consider using HEAP or clustered index for faster query performance.\n\n--use Master\nALTER DATABASE wplussynapsedw \nMODIFY (SERVICE_OBJECTIVE = 'DW500c');\n\nCREATE TABLE [NYCTaxi].[TripsHash]\nWITH\n(\n\theap,\n    DISTRIBUTION = HASH([Payment_type])\n)\nAS SELECT * FROM [NYTaxiSTG].[Trips]\nOPTION (LABEL = 'CTAS:HashPaymentType');\n\n--Table row count\nSELECT COUNT (*) FROM [NYCTaxi].[TripsHash]\n\n--Validate that there are only 4 unique values for Payment_type column\nSELECT DISTINCT [Payment_type] FROM [NYCTaxi].[TripsHash]\n\nSelect * \nFROM sys.dm_pdw_dms_workers dw\nJOIN sys.dm_pdw_exec_requests r \nON r.request_id = dw.request_id\nWHERE r.[label] = 'CTAS:HashPaymentType'\n\n\nSelect * \nFROM sys.dm_pdw_dms_workers dw\nJOIN sys.dm_pdw_exec_requests r \nON r.request_id = dw.request_id\nWHERE r.[label] = 'CTAS:HashPaymentType'\nand type = 'WRITER' and bytes_processed <> 0\n\n\n--use Master\nALTER DATABASE wplussynapsedw \nMODIFY (SERVICE_OBJECTIVE = 'DW100c');\n\n\n\n\n\n\n\n\n",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "wplussynapsedw",
+				"poolName": "wplussynapsedw"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}

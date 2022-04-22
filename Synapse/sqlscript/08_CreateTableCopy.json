@@ -1,0 +1,17 @@
+{
+	"name": "08_CreateTableCopy",
+	"properties": {
+		"content": {
+			"query": "CREATE SCHEMA [NYCTaxi];\n\n\nIF NOT EXISTS (SELECT * FROM sys.objects WHERE NAME = 'TripsStg' AND TYPE = 'U')\nCREATE TABLE [NYCTaxi].[TripsStg]\n\t(\n\t VendorID nvarchar(30),\n\t tpep_pickup_datetime nvarchar(30),\n\t tpep_dropoff_datetime nvarchar(30),\n\t passenger_count nvarchar(30),\n\t trip_distance nvarchar(30),\n\t RatecodeID nvarchar(30),\n\t store_and_fwd_flag nvarchar(30),\n\t PULocationID nvarchar(30),\n\t DOLocationID nvarchar(30),\n\t payment_type nvarchar(30),\n\t fare_amount nvarchar(10),\n\t extra nvarchar(10),\n\t mta_tax nvarchar(10),\n\t tip_amount nvarchar(10),\n\t tolls_amount nvarchar(10),\n\t improvement_surcharge nvarchar(10),\n\t total_amount nvarchar(10)\n\t)\nWITH\n\t(\n\tDISTRIBUTION = ROUND_ROBIN,\n\t HEAP\n\t)\nGO",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "master",
+				"poolName": "Built-in"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}

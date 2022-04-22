@@ -1,0 +1,17 @@
+{
+	"name": "PolybaseMonitoring",
+	"properties": {
+		"content": {
+			"query": " SELECT DISTINCT ew.*, r.command\nFROM[sys].[dm_pdw_dms_external_work] ew \nJOIN sys.dm_pdw_exec_requests r \nON r.request_id = ew.request_id\nJOIN Sys.dm_pdw_request_steps s\nON r.request_id = s.request_id\nWHERE r.[label] = 'Trips:PolybaseIncrementalLoad'\nORDER BY  input_name, dms_step_index",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "master",
+				"poolName": "Built-in"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}

@@ -1,0 +1,17 @@
+{
+	"name": "07_LoadDataUsingADF",
+	"properties": {
+		"content": {
+			"query": "/* 1. Manage Hub> Create linked Service \n\nLS_ADLSG2_asadatalakemarysynapse_NYC\n\n\n2. Go to the pipeline\n- Create two data sets (CSV and Synapse (with parameter))\n\n*/",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "master",
+				"poolName": "Built-in"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}
