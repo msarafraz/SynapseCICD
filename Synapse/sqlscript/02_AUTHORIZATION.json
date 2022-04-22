@@ -1,0 +1,17 @@
+{
+	"name": "02_AUTHORIZATION",
+	"properties": {
+		"content": {
+			"query": "-- AUTHORIZATION\n-- Connect to the user database(DW) \n-- Allow SQLDWuser to read data\nEXEC sp_addrolemember 'db_datareader', 'SQLDWuser'; \n-- Allow SQLDWuser to write data\nEXEC sp_addrolemember 'db_datawriter', 'SQLDWuser';\n",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "wplussynapsedw",
+				"poolName": "wplussynapsedw"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}

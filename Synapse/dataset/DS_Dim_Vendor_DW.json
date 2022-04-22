@@ -1,0 +1,17 @@
+{
+	"name": "DS_Dim_Vendor_DW",
+	"properties": {
+		"annotations": [],
+		"type": "SqlPoolTable",
+		"schema": [],
+		"typeProperties": {
+			"schema": "NYCTaxi",
+			"table": "DimVendor"
+		},
+		"sqlPool": {
+			"referenceName": "wplussynapsedw",
+			"type": "SqlPoolReference"
+		}
+	},
+	"type": "Microsoft.Synapse/workspaces/datasets"
+}

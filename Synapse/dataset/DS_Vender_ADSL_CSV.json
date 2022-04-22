@@ -1,0 +1,31 @@
+{
+	"name": "DS_Vender_ADSL_CSV",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "LS_ADLSG2_asadatalakemarysynapse_NYC",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "DelimitedText",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobFSLocation",
+				"fileName": "Vendor.csv",
+				"folderPath": "nyctaxistaging/Dimension",
+				"fileSystem": "blobroot"
+			},
+			"columnDelimiter": ",",
+			"escapeChar": "\\",
+			"quoteChar": "\""
+		},
+		"schema": [
+			{
+				"type": "String"
+			},
+			{
+				"type": "String"
+			}
+		]
+	},
+	"type": "Microsoft.Synapse/workspaces/datasets"
+}

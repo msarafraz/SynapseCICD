@@ -1,0 +1,17 @@
+{
+	"name": "PolybaseLoading",
+	"properties": {
+		"content": {
+			"query": "--Load data from external tables to managed tables into Synapse SQL Pool\n\n--First load all the dimension tables\nCREATE  TABLE [NYCTaxi].[TaxiZones]\nWITH\n(\n\tCLUSTERED INDEX ([LocationID]),\n    DISTRIBUTION = HASH(LocationID)\n)\nAS SELECT * FROM [NYTaxiSTG].[TaxiZones]\nOPTION (LABEL = 'CTAS:TaxiZones')\n;\n\n\nCREATE TABLE [NYCTaxi].[PaymentType]\nWITH\n(\n\tCLUSTERED INDEX ([PaymentType]),\n    DISTRIBUTION = ROUND_ROBIN\n)\nAS SELECT * FROM [NYTaxiSTG].[PaymentType]\nOPTION (LABEL = 'CTAS:PaymentType')\n;\n\nCREATE TABLE [NYCTaxi].[Vendor]\nWITH\n(\n\tCLUSTERED INDEX ([VendorID]),\n    DISTRIBUTION = ROUND_ROBIN\n)\nAS SELECT * FROM [NYTaxiSTG].[Vendor]\nOPTION (LABEL = 'CTAS:Vendor')\n;",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "master",
+				"poolName": "Built-in"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}

@@ -1,0 +1,26 @@
+{
+	"name": "DS_Synpse_NYC_Dim",
+	"properties": {
+		"parameters": {
+			"TableName": {
+				"type": "string",
+				"defaultValue": "SalesMigration.DimAccount"
+			}
+		},
+		"annotations": [],
+		"type": "SqlPoolTable",
+		"schema": [],
+		"typeProperties": {
+			"schema": "SalesMigration",
+			"table": {
+				"value": "@dataset().TableName",
+				"type": "Expression"
+			}
+		},
+		"sqlPool": {
+			"referenceName": "wplussynapsedw",
+			"type": "SqlPoolReference"
+		}
+	},
+	"type": "Microsoft.Synapse/workspaces/datasets"
+}

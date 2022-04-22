@@ -1,0 +1,17 @@
+{
+	"name": "04_MonitorLoadStatus",
+	"properties": {
+		"content": {
+			"query": "SELECT\n    r.command,\n    s.request_id,\n    r.status,\n    count(distinct input_name) as nbr_files,\n    sum(s.bytes_processed)/1024/1024 as mb_processed\nFROM \n    sys.dm_pdw_exec_requests r\n    INNER JOIN sys.dm_pdw_dms_external_work s\n    ON r.request_id = s.request_id\nWHERE\n    r.[label] = 'CTAS : Load [wwi].[dimension_City]' OR\n    r.[label] = 'CTAS : Load [wwi].[dimension_Customer]' OR\n    r.[label] = 'CTAS:TripsCompressed'\nGROUP BY\n    r.command,\n    s.request_id,\n    r.status\nORDER BY\n    nbr_files desc, \nmb_processed desc;\n",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "wplussynapsedw",
+				"poolName": "wplussynapsedw"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}

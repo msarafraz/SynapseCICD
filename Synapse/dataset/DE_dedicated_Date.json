@@ -1,0 +1,17 @@
+{
+	"name": "DE_dedicated_Date",
+	"properties": {
+		"annotations": [],
+		"type": "SqlPoolTable",
+		"schema": [],
+		"typeProperties": {
+			"schema": "NYTaxiSTG",
+			"table": "Date"
+		},
+		"sqlPool": {
+			"referenceName": "wplussynapsedw",
+			"type": "SqlPoolReference"
+		}
+	},
+	"type": "Microsoft.Synapse/workspaces/datasets"
+}

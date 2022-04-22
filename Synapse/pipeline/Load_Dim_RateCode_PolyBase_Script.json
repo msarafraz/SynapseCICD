@@ -1,0 +1,38 @@
+{
+	"name": "Load_Dim_RateCode_PolyBase_Script",
+	"properties": {
+		"activities": [
+			{
+				"name": "Script1",
+				"type": "Script",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"linkedServiceName": {
+					"referenceName": "asaworkspacemarysynapse-WorkspaceDefaultSqlServer",
+					"type": "LinkedServiceReference",
+					"parameters": {
+						"DBName": "wplussynapsedw"
+					}
+				},
+				"typeProperties": {
+					"scripts": [
+						{
+							"type": "NonQuery",
+							"text": "CREATE TABLE [NYCTaxi].[RateCode]\nWITH\n(\n\tCLUSTERED INDEX ([RateCodeID]),\n    DISTRIBUTION = ROUND_ROBIN\n)\nAS SELECT * FROM [NYTaxiSTG].[RateCode]\nOPTION (LABEL = 'CTAS:RateCode')\n;"
+						}
+					]
+				}
+			}
+		],
+		"annotations": [],
+		"lastPublishTime": "2022-03-15T17:47:07Z"
+	},
+	"type": "Microsoft.Synapse/workspaces/pipelines"
+}

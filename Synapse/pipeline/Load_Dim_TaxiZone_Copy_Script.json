@@ -1,0 +1,38 @@
+{
+	"name": "Load_Dim_TaxiZone_Copy_Script",
+	"properties": {
+		"activities": [
+			{
+				"name": "Copy_Taxi_Zone",
+				"type": "Script",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"linkedServiceName": {
+					"referenceName": "asaworkspacemarysynapse-WorkspaceDefaultSqlServer",
+					"type": "LinkedServiceReference",
+					"parameters": {
+						"DBName": "wplussynapsedw"
+					}
+				},
+				"typeProperties": {
+					"scripts": [
+						{
+							"type": "NonQuery",
+							"text": "COPY INTO [NYTaxiSTG].[TaxiZones]\nFROM 'https://asadatalakemarysynapse.blob.core.windows.net/blobroot/nyctaxistaging/dim/taxi_zone_lookup.csv'\nWITH\n(\n\tCREDENTIAL=(IDENTITY= 'Shared Access Signature', SECRET='?sv=2020-08-04&ss=bfqt&srt=sco&sp=rwdlacupx&se=2025-01-02T04:52:41Z&st=2022-03-14T19:52:41Z&spr=https&sig=X20J49nHcBxqCVZ7KBtrNI4FB3UWtE7vFf4iV55tnL8%3D'),\n\tFILE_TYPE = 'CSV'\n\t,MAXERRORS = 0\n\t,IDENTITY_INSERT = 'OFF'\n\t)"
+						}
+					]
+				}
+			}
+		],
+		"annotations": [],
+		"lastPublishTime": "2022-03-15T17:46:44Z"
+	},
+	"type": "Microsoft.Synapse/workspaces/pipelines"
+}
