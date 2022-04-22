@@ -1,0 +1,10 @@
+{
+	"name": "synapse-ws-sql--marysyanapscicdtest",
+	"properties": {
+		"privateLinkResourceId": "/subscriptions/5b2b9c45-4b91-4bc0-aeb9-bf7772f2d969/resourceGroups/RG-Mary-Syanapse-CndCntr/providers/Microsoft.Synapse/workspaces/marysyanapscicdtest",
+		"groupId": "sql",
+		"fqdns": [
+			"marysyanapscicdtest.754e6f1a-0f18-4041-97c7-f98bea728edc.sql.azuresynapse.net"
+		]
+	}
+}
