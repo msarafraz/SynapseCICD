@@ -1,0 +1,1670 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"workspaceName": {
+			"type": "string",
+			"metadata": "Workspace name",
+			"defaultValue": "asaworkspacemarysynapse"
+		},
+		"asadatalakemarysynapse_accountKey": {
+			"type": "secureString",
+			"metadata": "Secure string for 'accountKey' of 'asadatalakemarysynapse'"
+		},
+		"asastoremarysynapse_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'asastoremarysynapse'"
+		},
+		"asaworkspacemarysynapse-WorkspaceDefaultSqlServer_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'asaworkspacemarysynapse-WorkspaceDefaultSqlServer'"
+		},
+		"sqlpool01_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'sqlpool01'"
+		},
+		"sqlpool01_highperf_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'sqlpool01_highperf'"
+		},
+		"sqlpool01_import01_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'sqlpool01_import01'"
+		},
+		"sqlpool01_workload01_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'sqlpool01_workload01'"
+		},
+		"sqlpool01_workload02_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'sqlpool01_workload02'"
+		},
+		"LS_ADLSG2_asadatalakemarysynapse_NYC_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://asadatalakemarysynapse.dfs.core.windows.net"
+		},
+		"LS_demo_ADSl_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://asadatalakemarysynapse.dfs.core.windows.net"
+		},
+		"asadatalakemarysynapse_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://asadatalakemarysynapse.dfs.core.windows.net"
+		},
+		"asakeyvaultmarysynapse_properties_typeProperties_baseUrl": {
+			"type": "string",
+			"defaultValue": "https://asakeyvaultmarysynapse.vault.azure.net/"
+		},
+		"asaworkspacemarysynapse-WorkspaceDefaultStorage_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://asadatalakemarysynapse.dfs.core.windows.net"
+		}
+	},
+	"variables": {
+		"workspaceId": "[concat('Microsoft.Synapse/workspaces/', parameters('workspaceName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('workspaceName'), '/LoadNYCDim')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"activities": [
+					{
+						"name": "Get File Name",
+						"type": "GetMetadata",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "DS_ADLS_CSV_NYC",
+								"type": "DatasetReference",
+								"parameters": {
+									"fileName": "Vendor.csv"
+								}
+							},
+							"fieldList": [
+								"childItems",
+								"itemName"
+							],
+							"storeSettings": {
+								"type": "AzureBlobFSReadSettings",
+								"recursive": true,
+								"enablePartitionDiscovery": false
+							},
+							"formatSettings": {
+								"type": "DelimitedTextReadSettings"
+							}
+						}
+					},
+					{
+						"name": "ForEachDim",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "Get File Name",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Get File Name').output.childItems",
+								"type": "Expression"
+							},
+							"activities": [
+								{
+									"name": "Copy to DW",
+									"type": "Copy",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "DelimitedTextSource",
+											"storeSettings": {
+												"type": "AzureBlobFSReadSettings",
+												"recursive": true,
+												"enablePartitionDiscovery": false
+											},
+											"formatSettings": {
+												"type": "DelimitedTextReadSettings"
+											}
+										},
+										"sink": {
+											"type": "SqlPoolSink",
+											"allowCopyCommand": true,
+											"copyCommandSettings": {}
+										},
+										"enableStaging": true,
+										"stagingSettings": {
+											"linkedServiceName": {
+												"referenceName": "asastoremarysynapse",
+												"type": "LinkedServiceReference"
+											},
+											"path": "staging"
+										}
+									},
+									"inputs": [
+										{
+											"referenceName": "DS_ADLS_CSV_NYC",
+											"type": "DatasetReference",
+											"parameters": {
+												"fileName": "Vendor.csv"
+											}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "DS_Synpse_NYC_Dim",
+											"type": "DatasetReference",
+											"parameters": {
+												"TableName": "SalesMigration.DimVendor"
+											}
+										}
+									]
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"annotations": [],
+				"lastPublishTime": "2022-03-14T21:42:57Z"
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/datasets/DS_ADLS_CSV_NYC')]",
+				"[concat(variables('workspaceId'), '/datasets/DS_Synpse_NYC_Dim')]",
+				"[concat(variables('workspaceId'), '/linkedServices/asastoremarysynapse')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/Load_Dim_RateCode_PolyBase_Script')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"activities": [
+					{
+						"name": "Script1",
+						"type": "Script",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"linkedServiceName": {
+							"referenceName": "asaworkspacemarysynapse-WorkspaceDefaultSqlServer",
+							"type": "LinkedServiceReference",
+							"parameters": {
+								"DBName": "wplussynapsedw"
+							}
+						},
+						"typeProperties": {
+							"scripts": [
+								{
+									"type": "NonQuery",
+									"text": "CREATE TABLE [NYCTaxi].[RateCode]\nWITH\n(\n\tCLUSTERED INDEX ([RateCodeID]),\n    DISTRIBUTION = ROUND_ROBIN\n)\nAS SELECT * FROM [NYTaxiSTG].[RateCode]\nOPTION (LABEL = 'CTAS:RateCode')\n;"
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"annotations": [],
+				"lastPublishTime": "2022-03-15T17:47:07Z"
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/linkedServices/asaworkspacemarysynapse-WorkspaceDefaultSqlServer')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/Load_Dim_TaxiZone_Copy_Script')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"activities": [
+					{
+						"name": "Copy_Taxi_Zone",
+						"type": "Script",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"linkedServiceName": {
+							"referenceName": "asaworkspacemarysynapse-WorkspaceDefaultSqlServer",
+							"type": "LinkedServiceReference",
+							"parameters": {
+								"DBName": "wplussynapsedw"
+							}
+						},
+						"typeProperties": {
+							"scripts": [
+								{
+									"type": "NonQuery",
+									"text": "COPY INTO [NYTaxiSTG].[TaxiZones]\nFROM 'https://asadatalakemarysynapse.blob.core.windows.net/blobroot/nyctaxistaging/dim/taxi_zone_lookup.csv'\nWITH\n(\n\tCREDENTIAL=(IDENTITY= 'Shared Access Signature', SECRET='?sv=2020-08-04&ss=bfqt&srt=sco&sp=rwdlacupx&se=2025-01-02T04:52:41Z&st=2022-03-14T19:52:41Z&spr=https&sig=X20J49nHcBxqCVZ7KBtrNI4FB3UWtE7vFf4iV55tnL8%3D'),\n\tFILE_TYPE = 'CSV'\n\t,MAXERRORS = 0\n\t,IDENTITY_INSERT = 'OFF'\n\t)"
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"annotations": [],
+				"lastPublishTime": "2022-03-15T17:46:44Z"
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/linkedServices/asaworkspacemarysynapse-WorkspaceDefaultSqlServer')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/Load_Dim_Vendor')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"activities": [
+					{
+						"name": "Copy Dim Vendor",
+						"type": "Copy",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "DelimitedTextSource",
+								"storeSettings": {
+									"type": "AzureBlobFSReadSettings",
+									"recursive": true,
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "DelimitedTextReadSettings"
+								}
+							},
+							"sink": {
+								"type": "SqlPoolSink",
+								"allowPolyBase": true,
+								"polyBaseSettings": {
+									"rejectValue": 0,
+									"rejectType": "value",
+									"useTypeDefault": true
+								},
+								"tableOption": "autoCreate"
+							},
+							"enableStaging": true,
+							"stagingSettings": {
+								"linkedServiceName": {
+									"referenceName": "LS_ADLSG2_asadatalakemarysynapse_NYC",
+									"type": "LinkedServiceReference"
+								},
+								"path": "staging"
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "DS_Vender_ADSL_CSV",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "DS_Dim_Vendor_DW",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						]
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"annotations": [],
+				"lastPublishTime": "2022-03-15T16:03:45Z"
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/datasets/DS_Vender_ADSL_CSV')]",
+				"[concat(variables('workspaceId'), '/datasets/DS_Dim_Vendor_DW')]",
+				"[concat(variables('workspaceId'), '/linkedServices/LS_ADLSG2_asadatalakemarysynapse_NYC')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/Load_Dim_paymentType_Copy_SP')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"activities": [
+					{
+						"name": "Stored procedure1",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[NYTaxiSTG].[sp_copyPaymentType]"
+						},
+						"linkedServiceName": {
+							"referenceName": "asaworkspacemarysynapse-WorkspaceDefaultSqlServer",
+							"type": "LinkedServiceReference",
+							"parameters": {
+								"DBName": "wplussynapsedw"
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"annotations": [],
+				"lastPublishTime": "2022-03-15T18:01:58Z"
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/linkedServices/asaworkspacemarysynapse-WorkspaceDefaultSqlServer')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/Load_Dim_paymentType_Copy_SP_Script')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"activities": [
+					{
+						"name": "Script1",
+						"type": "Script",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"linkedServiceName": {
+							"referenceName": "asaworkspacemarysynapse-WorkspaceDefaultSqlServer",
+							"type": "LinkedServiceReference",
+							"parameters": {
+								"DBName": "wplussynapsedw"
+							}
+						},
+						"typeProperties": {
+							"scripts": [
+								{
+									"type": "NonQuery",
+									"text": "exec [NYTaxiSTG].[sp_copyPaymentType]"
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"annotations": [],
+				"lastPublishTime": "2022-03-15T17:47:36Z"
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/linkedServices/asaworkspacemarysynapse-WorkspaceDefaultSqlServer')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/PL_Master')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"activities": [
+					{
+						"name": "Load_Dim_Vendor",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "Load_Dim_Vendor",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "Load_Dim_paymentType_Copy_SP",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "Load_Dim_paymentType_Copy_SP",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "Load_Dim_RateCode_PolyBase_Script",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "Load_Dim_RateCode_PolyBase_Script",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "Load_Dim_TaxiZone_Copy_Script",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "Load_Dim_Vendor",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "Load_Dim_RateCode_PolyBase_Script",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "Load_Dim_paymentType_Copy_SP",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "Load_Dim_TaxiZone_Copy_Script",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"annotations": [],
+				"lastPublishTime": "2022-03-17T05:51:47Z"
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/pipelines/Load_Dim_Vendor')]",
+				"[concat(variables('workspaceId'), '/pipelines/Load_Dim_paymentType_Copy_SP')]",
+				"[concat(variables('workspaceId'), '/pipelines/Load_Dim_RateCode_PolyBase_Script')]",
+				"[concat(variables('workspaceId'), '/pipelines/Load_Dim_TaxiZone_Copy_Script')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/Pipeline 1')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"activities": [
+					{
+						"name": "Copy data csv",
+						"type": "Copy",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "DelimitedTextSource",
+								"storeSettings": {
+									"type": "AzureBlobFSReadSettings",
+									"recursive": true,
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "DelimitedTextReadSettings"
+								}
+							},
+							"sink": {
+								"type": "SqlPoolSink",
+								"allowCopyCommand": true,
+								"copyCommandSettings": {}
+							},
+							"enableStaging": true,
+							"stagingSettings": {
+								"linkedServiceName": {
+									"referenceName": "asaworkspacemarysynapse-WorkspaceDefaultStorage",
+									"type": "LinkedServiceReference"
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "Demo_csv",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "DE_dedicated_Date",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						]
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"annotations": [],
+				"lastPublishTime": "2022-03-17T16:30:04Z"
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/datasets/Demo_csv')]",
+				"[concat(variables('workspaceId'), '/datasets/DE_dedicated_Date')]",
+				"[concat(variables('workspaceId'), '/linkedServices/asaworkspacemarysynapse-WorkspaceDefaultStorage')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/DE_dedicated_Date')]",
+			"type": "Microsoft.Synapse/workspaces/datasets",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"annotations": [],
+				"type": "SqlPoolTable",
+				"schema": [],
+				"typeProperties": {
+					"schema": "NYTaxiSTG",
+					"table": "Date"
+				},
+				"sqlPool": {
+					"referenceName": "wplussynapsedw",
+					"type": "SqlPoolReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/sqlPools/wplussynapsedw')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/DS_ADLS_CSV_NYC')]",
+			"type": "Microsoft.Synapse/workspaces/datasets",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "LS_ADLSG2_asadatalakemarysynapse_NYC",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"fileName": {
+						"type": "string",
+						"defaultValue": "Account"
+					}
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": {
+							"value": "@dataset().fileName",
+							"type": "Expression"
+						},
+						"folderPath": "nyctaxistaging/Dimension",
+						"fileSystem": "blobroot"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": [
+					{
+						"name": "Date",
+						"type": "String"
+					},
+					{
+						"name": "DateKey",
+						"type": "String"
+					},
+					{
+						"name": "Month",
+						"type": "String"
+					},
+					{
+						"name": "Year",
+						"type": "String"
+					},
+					{
+						"name": "MonthNo",
+						"type": "String"
+					},
+					{
+						"name": "QuarterNo",
+						"type": "String"
+					},
+					{
+						"name": "Quarter",
+						"type": "String"
+					},
+					{
+						"name": "MMM-YYYY",
+						"type": "String"
+					},
+					{
+						"name": "DayOfWeekNo",
+						"type": "String"
+					},
+					{
+						"name": "DayOfWeek",
+						"type": "String"
+					},
+					{
+						"name": "Day",
+						"type": "String"
+					}
+				]
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/linkedServices/LS_ADLSG2_asadatalakemarysynapse_NYC')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/DS_Dim_Vendor_DW')]",
+			"type": "Microsoft.Synapse/workspaces/datasets",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"annotations": [],
+				"type": "SqlPoolTable",
+				"schema": [],
+				"typeProperties": {
+					"schema": "NYCTaxi",
+					"table": "DimVendor"
+				},
+				"sqlPool": {
+					"referenceName": "wplussynapsedw",
+					"type": "SqlPoolReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/sqlPools/wplussynapsedw')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/DS_Synpse_NYC_Dim')]",
+			"type": "Microsoft.Synapse/workspaces/datasets",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"parameters": {
+					"TableName": {
+						"type": "string",
+						"defaultValue": "SalesMigration.DimAccount"
+					}
+				},
+				"annotations": [],
+				"type": "SqlPoolTable",
+				"schema": [],
+				"typeProperties": {
+					"schema": "SalesMigration",
+					"table": {
+						"value": "@dataset().TableName",
+						"type": "Expression"
+					}
+				},
+				"sqlPool": {
+					"referenceName": "wplussynapsedw",
+					"type": "SqlPoolReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/sqlPools/wplussynapsedw')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/DS_Vender_ADSL_CSV')]",
+			"type": "Microsoft.Synapse/workspaces/datasets",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "LS_ADLSG2_asadatalakemarysynapse_NYC",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": "Vendor.csv",
+						"folderPath": "nyctaxistaging/Dimension",
+						"fileSystem": "blobroot"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"quoteChar": "\""
+				},
+				"schema": [
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					}
+				]
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/linkedServices/LS_ADLSG2_asadatalakemarysynapse_NYC')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/Demo_csv')]",
+			"type": "Microsoft.Synapse/workspaces/datasets",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "LS_demo_ADSl",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": "Date.csv",
+						"folderPath": "nyctaxistaging/Dimension",
+						"fileSystem": "blobroot"
+					},
+					"columnDelimiter": "|",
+					"escapeChar": "\\",
+					"quoteChar": "\""
+				},
+				"schema": [
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					}
+				]
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/linkedServices/LS_demo_ADSl')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/LS_ADLSG2_asadatalakemarysynapse_NYC')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobFS",
+				"typeProperties": {
+					"url": "[parameters('LS_ADLSG2_asadatalakemarysynapse_NYC_properties_typeProperties_url')]"
+				},
+				"connectVia": {
+					"referenceName": "AutoResolveIntegrationRuntime",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/LS_demo_ADSl')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobFS",
+				"typeProperties": {
+					"url": "[parameters('LS_demo_ADSl_properties_typeProperties_url')]"
+				},
+				"connectVia": {
+					"referenceName": "AutoResolveIntegrationRuntime",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/PowerBIWorkspace1')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"annotations": [],
+				"type": "PowerBIWorkspace",
+				"typeProperties": {
+					"workspaceID": "84f7f131-b03d-452f-b3ae-ca9cdda150b7",
+					"tenantID": "72f988bf-86f1-41af-91ab-2d7cd011db47"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/asadatalakemarysynapse')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobFS",
+				"typeProperties": {
+					"url": "[parameters('asadatalakemarysynapse_properties_typeProperties_url')]",
+					"accountKey": {
+						"type": "SecureString",
+						"value": "[parameters('asadatalakemarysynapse_accountKey')]"
+					}
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/asakeyvaultmarysynapse')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"annotations": [],
+				"type": "AzureKeyVault",
+				"typeProperties": {
+					"baseUrl": "[parameters('asakeyvaultmarysynapse_properties_typeProperties_baseUrl')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/asastoremarysynapse')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobStorage",
+				"typeProperties": {
+					"connectionString": "[parameters('asastoremarysynapse_connectionString')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/asaworkspacemarysynapse-WorkspaceDefaultSqlServer')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"parameters": {
+					"DBName": {
+						"type": "String"
+					}
+				},
+				"annotations": [],
+				"type": "AzureSqlDW",
+				"typeProperties": {
+					"connectionString": "[parameters('asaworkspacemarysynapse-WorkspaceDefaultSqlServer_connectionString')]"
+				},
+				"connectVia": {
+					"referenceName": "AutoResolveIntegrationRuntime",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/asaworkspacemarysynapse-WorkspaceDefaultStorage')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobFS",
+				"typeProperties": {
+					"url": "[parameters('asaworkspacemarysynapse-WorkspaceDefaultStorage_properties_typeProperties_url')]"
+				},
+				"connectVia": {
+					"referenceName": "AutoResolveIntegrationRuntime",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/sqlpool01')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"annotations": [],
+				"type": "AzureSqlDW",
+				"typeProperties": {
+					"connectionString": "[parameters('sqlpool01_connectionString')]",
+					"password": {
+						"type": "AzureKeyVaultSecret",
+						"store": {
+							"referenceName": "asakeyvaultmarysynapse",
+							"type": "LinkedServiceReference"
+						},
+						"secretName": "SQL-USER-ASA"
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/linkedServices/asakeyvaultmarysynapse')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/sqlpool01_highperf')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"annotations": [],
+				"type": "AzureSqlDW",
+				"typeProperties": {
+					"connectionString": "[parameters('sqlpool01_highperf_connectionString')]",
+					"password": {
+						"type": "AzureKeyVaultSecret",
+						"store": {
+							"referenceName": "asakeyvaultmarysynapse",
+							"type": "LinkedServiceReference"
+						},
+						"secretName": "SQL-USER-ASA"
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/linkedServices/asakeyvaultmarysynapse')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/sqlpool01_import01')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"annotations": [],
+				"type": "AzureSqlDW",
+				"typeProperties": {
+					"connectionString": "[parameters('sqlpool01_import01_connectionString')]",
+					"password": {
+						"type": "AzureKeyVaultSecret",
+						"store": {
+							"referenceName": "asakeyvaultmarysynapse",
+							"type": "LinkedServiceReference"
+						},
+						"secretName": "SQL-USER-ASA"
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/linkedServices/asakeyvaultmarysynapse')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/sqlpool01_workload01')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"annotations": [],
+				"type": "AzureSqlDW",
+				"typeProperties": {
+					"connectionString": "[parameters('sqlpool01_workload01_connectionString')]",
+					"password": {
+						"type": "AzureKeyVaultSecret",
+						"store": {
+							"referenceName": "asakeyvaultmarysynapse",
+							"type": "LinkedServiceReference"
+						},
+						"secretName": "SQL-USER-ASA"
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/linkedServices/asakeyvaultmarysynapse')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/sqlpool01_workload02')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"annotations": [],
+				"type": "AzureSqlDW",
+				"typeProperties": {
+					"connectionString": "[parameters('sqlpool01_workload02_connectionString')]",
+					"password": {
+						"type": "AzureKeyVaultSecret",
+						"store": {
+							"referenceName": "asakeyvaultmarysynapse",
+							"type": "LinkedServiceReference"
+						},
+						"secretName": "SQL-USER-ASA"
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/linkedServices/asakeyvaultmarysynapse')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/Load_NYC_DW')]",
+			"type": "Microsoft.Synapse/workspaces/triggers",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"annotations": [],
+				"runtimeState": "Stopped",
+				"pipelines": [
+					{
+						"pipelineReference": {
+							"referenceName": "PL_Master",
+							"type": "PipelineReference"
+						},
+						"parameters": {}
+					}
+				],
+				"type": "ScheduleTrigger",
+				"typeProperties": {
+					"recurrence": {
+						"frequency": "Minute",
+						"interval": 15,
+						"startTime": "2022-03-17T05:52:00Z",
+						"timeZone": "UTC"
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/pipelines/PL_Master')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/Trigger_demo')]",
+			"type": "Microsoft.Synapse/workspaces/triggers",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"annotations": [],
+				"runtimeState": "Stopped",
+				"pipelines": [
+					{
+						"pipelineReference": {
+							"referenceName": "Pipeline 1",
+							"type": "PipelineReference"
+						},
+						"parameters": {}
+					}
+				],
+				"type": "ScheduleTrigger",
+				"typeProperties": {
+					"recurrence": {
+						"frequency": "Day",
+						"interval": 1,
+						"startTime": "2022-03-17T16:31:00Z",
+						"timeZone": "UTC",
+						"schedule": {
+							"minutes": [
+								30
+							],
+							"hours": [
+								20
+							]
+						}
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/pipelines/Pipeline 1')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/AutoResolveIntegrationRuntime')]",
+			"type": "Microsoft.Synapse/workspaces/integrationRuntimes",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"type": "Managed",
+				"typeProperties": {
+					"computeProperties": {
+						"location": "AutoResolve",
+						"dataFlowProperties": {
+							"computeType": "General",
+							"coreCount": 8,
+							"timeToLive": 0
+						}
+					}
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/AzureIntegrationRuntime01')]",
+			"type": "Microsoft.Synapse/workspaces/integrationRuntimes",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"type": "Managed",
+				"typeProperties": {
+					"computeProperties": {
+						"location": "AutoResolve",
+						"dataFlowProperties": {
+							"computeType": "MemoryOptimized",
+							"coreCount": 16,
+							"timeToLive": 60
+						}
+					}
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/WorkspaceSystemIdentity')]",
+			"type": "Microsoft.Synapse/workspaces/credentials",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"type": "ManagedIdentity",
+				"typeProperties": {}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/01_AUTHENTICATION')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "-- AUTHENTICATION\n-- Connect to master database and create a login\nUse Master;\nCREATE LOGIN SQLDWLogin WITH PASSWORD = 'Password@1';\nCREATE USER SQLDWuser FOR LOGIN SQLDWLogin;\n\n-- Connect to the user database(DW) and create a database user\nCREATE USER SQLDWuser FOR LOGIN SQLDWLogin;",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "wplussynapsedw",
+						"poolName": "wplussynapsedw"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/02_AUTHORIZATION')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "-- AUTHORIZATION\n-- Connect to the user database(DW) \n-- Allow SQLDWuser to read data\nEXEC sp_addrolemember 'db_datareader', 'SQLDWuser'; \n-- Allow SQLDWuser to write data\nEXEC sp_addrolemember 'db_datawriter', 'SQLDWuser';\n",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "wplussynapsedw",
+						"poolName": "wplussynapsedw"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/03_LoadData_Polybase')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "-- You can run these scripts using SSMS too\n\n-- 1. Create a master key for the Sample database. You only need to create a master key once per database.\n\nCREATE MASTER KEY;\n\n-- 2. Define the location of the Azure blob. This is the location of the external worldwide importers data.\nCREATE EXTERNAL DATA SOURCE WWIStorage_Hadoop\nWITH\n(\n    TYPE = Hadoop,\n    LOCATION = 'wasbs://wideworldimporters@sqldwholdata.blob.core.windows.net'\n);\n\nCREATE EXTERNAL DATA SOURCE WWIStorage_Native\nWITH\n(\n    LOCATION = 'wasbs://wideworldimporters@sqldwholdata.blob.core.windows.net'\n);\n-- 3. Create external file formart. specify the formatting characteristics and options for the external data file. \n--This statement specifies the external data is stored as text and the values are separated by the pipe ('|') character\nCREATE EXTERNAL FILE FORMAT TextFileFormat \nWITH \n(   \n    FORMAT_TYPE = DELIMITEDTEXT,\n    FORMAT_OPTIONS\n     (   \n         FIELD_TERMINATOR = '|',\n        USE_TYPE_DEFAULT = FALSE \n    )\n);\n\n--4. Create a schema for external file format. and Data tables\nCREATE SCHEMA ext;\nGO\nCREATE SCHEMA wwi;\n\n--5. Create external tables\n\nCREATE EXTERNAL TABLE [ext].[dimension_City_Native](\n\t[City Key] [int] NOT NULL,\n\t[WWI City ID] [int] NOT NULL,\n\t[City] [nvarchar](50) NOT NULL,\n\t[State Province] [nvarchar](50) NOT NULL,\n\t[Country] [nvarchar](60) NOT NULL,\n\t[Continent] [nvarchar](30) NOT NULL,\n\t[Sales Territory] [nvarchar](50) NOT NULL,\n\t[Region] [nvarchar](30) NOT NULL,\n\t[Subregion] [nvarchar](30) NOT NULL,\n\t[Location] [nvarchar](76) NULL,\n\t[Latest Recorded Population] [bigint] NOT NULL,\n\t[Valid From] [datetime2](7) NOT NULL,\n\t[Valid To] [datetime2](7) NOT NULL,\n\t[Lineage Key] [int] NOT NULL\n)\nWITH (LOCATION='/v1/dimension_City/',   \n    DATA_SOURCE = WWIStorage,  \n    FILE_FORMAT = TextFileFormat,\n \tREJECT_TYPE = VALUE,\n    REJECT_VALUE = 0\n);  \n\nselect * from [ext].[dimension_City_Native]\n-- performance of Hadoop is better\nCREATE EXTERNAL TABLE [ext].[dimension_City](\n\t[City Key] [int] NOT NULL,\n\t[WWI City ID] [int] NOT NULL,\n\t[City] [nvarchar](50) NOT NULL,\n\t[State Province] [nvarchar](50) NOT NULL,\n\t[Country] [nvarchar](60) NOT NULL,\n\t[Continent] [nvarchar](30) NOT NULL,\n\t[Sales Territory] [nvarchar](50) NOT NULL,\n\t[Region] [nvarchar](30) NOT NULL,\n\t[Subregion] [nvarchar](30) NOT NULL,\n\t[Location] [nvarchar](76) NULL,\n\t[Latest Recorded Population] [bigint] NOT NULL,\n\t[Valid From] [datetime2](7) NOT NULL,\n\t[Valid To] [datetime2](7) NOT NULL,\n\t[Lineage Key] [int] NOT NULL\n)\nWITH (LOCATION='/v1/dimension_City/',   \n    DATA_SOURCE = WWIStorage_Hadoop,  \n    FILE_FORMAT = TextFileFormat,\n \tREJECT_TYPE = VALUE,\n    REJECT_VALUE = 0\n);  \n\nCREATE EXTERNAL TABLE [ext].[dimension_Customer] (\n\t[Customer Key] [int] NOT NULL,\n\t[WWI Customer ID] [int] NOT NULL,\n\t[Customer] [nvarchar](100) NOT NULL,\n\t[Bill To Customer] [nvarchar](100) NOT NULL,\n   \t[Category] [nvarchar](50) NOT NULL,\n\t[Buying Group] [nvarchar](50) NOT NULL,\n\t[Primary Contact] [nvarchar](50) NOT NULL,\n\t[Postal Code] [nvarchar](10) NOT NULL,\n\t[Valid From] [datetime2](7) NOT NULL,\n\t[Valid To] [datetime2](7) NOT NULL,\n\t[Lineage Key] [int] NOT NULL\n)\nWITH (LOCATION='/v1/dimension_Customer/',   \n    DATA_SOURCE = WWIStorage_Hadoop,  \n    FILE_FORMAT = TextFileFormat,\n \tREJECT_TYPE = VALUE,\n    REJECT_VALUE = 0\n);\n\n-- 5. check the created objects\n\n-- 6. Load data using CTAS\n\nCREATE TABLE [wwi].[dimension_City]\nWITH\n( \n    DISTRIBUTION = REPLICATE,\n    CLUSTERED COLUMNSTORE INDEX\n)\nAS\nSELECT * FROM [ext].[dimension_City]\nOPTION (LABEL = 'CTAS : Load [wwi].[dimension_City]');\n\nCREATE TABLE [wwi].[dimension_Customer]\nWITH\n( \n    DISTRIBUTION = REPLICATE,\n    CLUSTERED COLUMNSTORE INDEX\n)\nAS\nSELECT * FROM [ext].[dimension_Customer]\nOPTION (LABEL = 'CTAS : Load [wwi].[dimension_Customer]');\n\n--7 Monitor status of the load in the next script\n\n",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "SQLPool01",
+						"poolName": "SQLPool01"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/04_MonitorLoadStatus')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "SELECT\n    r.command,\n    s.request_id,\n    r.status,\n    count(distinct input_name) as nbr_files,\n    sum(s.bytes_processed)/1024/1024 as mb_processed\nFROM \n    sys.dm_pdw_exec_requests r\n    INNER JOIN sys.dm_pdw_dms_external_work s\n    ON r.request_id = s.request_id\nWHERE\n    r.[label] = 'CTAS : Load [wwi].[dimension_City]' OR\n    r.[label] = 'CTAS : Load [wwi].[dimension_Customer]' OR\n    r.[label] = 'CTAS:TripsCompressed'\nGROUP BY\n    r.command,\n    s.request_id,\n    r.status\nORDER BY\n    nbr_files desc, \nmb_processed desc;\n",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "wplussynapsedw",
+						"poolName": "wplussynapsedw"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/05_LoadSingleCompressFile_Polybase')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "\n--Load compressed text files\n-- loading data to Synapse SQL Pool over a compressed single file can be a bottleneck in terms of data loading performance. \n\n--Credential used to authenticate to External Data Source \nCREATE DATABASE SCOPED CREDENTIAL AzureStorageCredential\nWITH\n    IDENTITY = 'user',\n    SECRET = 'Fdnk0yeqCyV4DvzMJ0yGWGmLn33ooJ0hqCJDE9L7iVBRjaLp8JAJT9avwaLciBelxIsFwG5Z9OKqWxsAOfGF2g=='\n;\n\n\n-- location of data\nCREATE EXTERNAL DATA SOURCE BlobStorage\nWITH\n(\n    TYPE = Hadoop,\n    LOCATION = 'wasbs://blobroot@asadatalakemarysynapse.blob.core.windows.net/',\n    CREDENTIAL = [AzureStorageCredential]\n);\n\n\n--We will load one file which a fact table. This will be a compressed file.\nCREATE EXTERNAL FILE FORMAT compressedcsv\nWITH ( \n    FORMAT_TYPE = DELIMITEDTEXT,\n    FORMAT_OPTIONS ( \n\tFIELD_TERMINATOR = ',',\n\tDATE_FORMAT = 'yyyy-MM-dd HH:mm:ss.fffffff',\n        STRING_DELIMITER = '',\n        USE_TYPE_DEFAULT = False,\n\t\tFIRST_ROW = 2\n    ),\n    DATA_COMPRESSION = 'org.apache.hadoop.io.compress.GzipCodec'\n);\n\n--Create a schema for external tables\nCREATE SCHEMA [NYTaxiSTG];\n\n--Create the external table\n--External table referencing the single compressed file\nCREATE EXTERNAL TABLE [NYTaxiSTG].[TripsCompressed]\n(\n    [VendorID] varchar(10) NOT NULL,\n    [tpep_pickup_datetime] datetime2 NOT NULL,\n    [tpep_dropoff_datetime] datetime2 NOT NULL,\n    [passenger_count] int NOT NULL,\n    [trip_distance] float NOT NULL,\n    [RateCodeID] int NULL,\n    [store_and_fwd_flag] varchar(3) NULL,\n    [PULocationID] int NULL,\n    [DOLocationID] int NULL,\n    [payment_type] int NULL,\n    [fare_amount] money NULL,\n    [extra] money NULL,\n    [mta_tax] money NULL,\n    [tip_amount] money NULL,\n    [tolls_amount] money NULL,\n    [improvement_surcharge] money NULL,\n    [total_amount] money NULL\n)\nWITH\n(\n    LOCATION = 'DemoFiles/TripsCompressed.gz',\n    DATA_SOURCE = BlobStorage,\n    FILE_FORMAT = compressedcsv,\n    REJECT_TYPE = value,\n    REJECT_VALUE = 0\n);\n\n--Create heap table for faster initial data loading\nCREATE SCHEMA [NYCTaxi];\n\nCREATE TABLE [NYCTaxi].[TripsCompressed]\nWITH\n(\n\tHEAP,\n    DISTRIBUTION = ROUND_ROBIN\n)\nAS SELECT * FROM [NYTaxiSTG].[TripsCompressed]\nOPTION (LABEL = 'CTAS:TripsCompressed')\n;\n\n-- Monitor to see number of files\n/*\nWould scaling the DW to DWU30000c increase load performance in this case? \nThe load performance will never be increased because there is only a single compressed file being copied where multiple readers are not taking \na parallel load for compressed files.\n*/ \n--Count of rows\nSELECT COUNT(*) FROM [NYCTaxi].[TripsCompressed]\n\n--Preview after load\nSELECT TOP 1000 * FROM [NYCTaxi].[TripsCompressed]",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "wplussynapsedw",
+						"poolName": "wplussynapsedw"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/06_AdventureworksDW2016Schema')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "-- After running this script go to your pipeline\n\nCREATE SCHEMA [SalesMigration];\n\nCREATE TABLE [SalesMigration].[DimAccount] ([AccountKey] Int NOT NULL\n,[ParentAccountKey] Int NULL\n,[AccountCodeAlternateKey] Int NULL\n,[ParentAccountCodeAlternateKey] Int NULL\n,[AccountDescription] NVarchar(50) NULL\n,[AccountType] NVarchar(50) NULL\n,[Operator] NVarchar(50) NULL\n,[CustomMembers] NVarchar(300) NULL\n,[ValueType] NVarchar(50) NULL\n,[CustomMemberOptions] NVarchar(200) NULL\n) WITH (CLUSTERED COLUMNSTORE INDEX, DISTRIBUTION = ROUND_ROBIN)\n\nCREATE TABLE [SalesMigration].[DimCurrency] ([CurrencyKey] Int NOT NULL\n,[CurrencyAlternateKey] NChar(3) NOT NULL\n,[CurrencyName] NVarchar(50) NOT NULL\n) WITH (CLUSTERED COLUMNSTORE INDEX, DISTRIBUTION = ROUND_ROBIN)\n\nCREATE TABLE [SalesMigration].[DimCustomer] ([CustomerKey] Int NOT NULL\n,[GeographyKey] Int NULL\n,[CustomerAlternateKey] NVarchar(15) NOT NULL\n,[Title] NVarchar(8) NULL\n,[FirstName] NVarchar(50) NULL\n,[MiddleName] NVarchar(50) NULL\n,[LastName] NVarchar(50) NULL\n,[NameStyle] Bit NULL\n,[BirthDate] Date NULL\n,[MaritalStatus] NChar(1) NULL\n,[Suffix] NVarchar(10) NULL\n,[Gender] NVarchar(1) NULL\n,[EmailAddress] NVarchar(50) NULL\n,[YearlyIncome] Money NULL\n,[TotalChildren] TinyInt NULL\n,[NumberChildrenAtHome] TinyInt NULL\n,[EnglishEducation] NVarchar(40) NULL\n,[SpanishEducation] NVarchar(40) NULL\n,[FrenchEducation] NVarchar(40) NULL\n,[EnglishOccupation] NVarchar(100) NULL\n,[SpanishOccupation] NVarchar(100) NULL\n,[FrenchOccupation] NVarchar(100) NULL\n,[HouseOwnerFlag] NChar(1) NULL\n,[NumberCarsOwned] TinyInt NULL\n,[AddressLine1] NVarchar(120) NULL\n,[AddressLine2] NVarchar(120) NULL\n,[Phone] NVarchar(20) NULL\n,[DateFirstPurchase] Date NULL\n,[CommuteDistance] NVarchar(15) NULL\n) WITH (CLUSTERED COLUMNSTORE INDEX, DISTRIBUTION = ROUND_ROBIN)\n\nCREATE TABLE [SalesMigration].[DimDate] ([DateKey] Int NOT NULL\n,[FullDateAlternateKey] Date NOT NULL\n,[DayNumberOfWeek] TinyInt NOT NULL\n,[EnglishDayNameOfWeek] NVarchar(10) NOT NULL\n,[SpanishDayNameOfWeek] NVarchar(10) NOT NULL\n,[FrenchDayNameOfWeek] NVarchar(10) NOT NULL\n,[DayNumberOfMonth] TinyInt NOT NULL\n,[DayNumberOfYear] SmallInt NOT NULL\n,[WeekNumberOfYear] TinyInt NOT NULL\n,[EnglishMonthName] NVarchar(10) NOT NULL\n,[SpanishMonthName] NVarchar(10) NOT NULL\n,[FrenchMonthName] NVarchar(10) NOT NULL\n,[MonthNumberOfYear] TinyInt NOT NULL\n,[CalendarQuarter] TinyInt NOT NULL\n,[CalendarYear] SmallInt NOT NULL\n,[CalendarSemester] TinyInt NOT NULL\n,[FiscalQuarter] TinyInt NOT NULL\n,[FiscalYear] SmallInt NOT NULL\n,[FiscalSemester] TinyInt NOT NULL\n) WITH (CLUSTERED COLUMNSTORE INDEX, DISTRIBUTION = ROUND_ROBIN)\n\nCREATE TABLE [SalesMigration].[DimGeography] ([GeographyKey] Int NOT NULL\n,[City] NVarchar(30) NULL\n,[StateProvinceCode] NVarchar(3) NULL\n,[StateProvinceName] NVarchar(50) NULL\n,[CountryRegionCode] NVarchar(3) NULL\n,[EnglishCountryRegionName] NVarchar(50) NULL\n,[SpanishCountryRegionName] NVarchar(50) NULL\n,[FrenchCountryRegionName] NVarchar(50) NULL\n,[PostalCode] NVarchar(15) NULL\n,[SalesTerritoryKey] Int NULL\n,[IpAddressLocator] NVarchar(15) NULL\n) WITH (CLUSTERED COLUMNSTORE INDEX, DISTRIBUTION = ROUND_ROBIN)\n\nCREATE TABLE [SalesMigration].[DimProduct] ([ProductKey] Int NOT NULL\n,[ProductAlternateKey] NVarchar(25) NULL\n,[ProductSubcategoryKey] Int NULL\n,[WeightUnitMeasureCode] NChar(3) NULL\n,[SizeUnitMeasureCode] NChar(3) NULL\n,[EnglishProductName] NVarchar(50) NOT NULL\n,[SpanishProductName] NVarchar(50) NOT NULL\n,[FrenchProductName] NVarchar(50) NOT NULL\n,[StandardCost] Money NULL\n,[FinishedGoodsFlag] Bit NOT NULL\n,[Color] NVarchar(15) NOT NULL\n,[SafetyStockLevel] SmallInt NULL\n,[ReorderPoint] SmallInt NULL\n,[ListPrice] Money NULL\n,[Size] NVarchar(50) NULL\n,[SizeRange] NVarchar(50) NULL\n,[Weight] Float NULL\n,[DaysToManufacture] Int NULL\n,[ProductLine] NChar(2) NULL\n,[DealerPrice] Money NULL\n,[Class] NChar(2) NULL\n,[Style] NChar(2) NULL\n,[ModelName] NVarchar(50) NULL\n,[EnglishDescription] NVarchar(400) NULL\n,[FrenchDescription] NVarchar(400) NULL\n,[ChineseDescription] NVarchar(400) NULL\n,[ArabicDescription] NVarchar(400) NULL\n,[HebrewDescription] NVarchar(400) NULL\n,[ThaiDescription] NVarchar(400) NULL\n,[GermanDescription] NVarchar(400) NULL\n,[JapaneseDescription] NVarchar(400) NULL\n,[TurkishDescription] NVarchar(400) NULL\n,[StartDate] DateTime NULL\n,[EndDate] DateTime NULL\n,[Status] NVarchar(7) NULL\n) WITH (CLUSTERED COLUMNSTORE INDEX, DISTRIBUTION = ROUND_ROBIN)\n\nCREATE TABLE [SalesMigration].[DimProductCategory] ([ProductCategoryKey] Int NOT NULL\n,[ProductCategoryAlternateKey] Int NULL\n,[EnglishProductCategoryName] NVarchar(50) NOT NULL\n,[SpanishProductCategoryName] NVarchar(50) NOT NULL\n,[FrenchProductCategoryName] NVarchar(50) NOT NULL\n) WITH (CLUSTERED COLUMNSTORE INDEX, DISTRIBUTION = ROUND_ROBIN)\n\nCREATE TABLE [SalesMigration].[DimProductSubcategory] ([ProductSubcategoryKey] Int NOT NULL\n,[ProductSubcategoryAlternateKey] Int NULL\n,[EnglishProductSubcategoryName] NVarchar(50) NOT NULL\n,[SpanishProductSubcategoryName] NVarchar(50) NOT NULL\n,[FrenchProductSubcategoryName] NVarchar(50) NOT NULL\n,[ProductCategoryKey] Int NULL\n) WITH (CLUSTERED COLUMNSTORE INDEX, DISTRIBUTION = ROUND_ROBIN)\n\nCREATE TABLE [SalesMigration].[DimReseller] ([ResellerKey] Int NOT NULL\n,[GeographyKey] Int NULL\n,[ResellerAlternateKey] NVarchar(15) NULL\n,[Phone] NVarchar(25) NULL\n,[BusinessType] VarChar(20) NOT NULL\n,[ResellerName] NVarchar(50) NOT NULL\n,[NumberEmployees] Int NULL\n,[OrderFrequency] Char(1) NULL\n,[OrderMonth] TinyInt NULL\n,[FirstOrderYear] Int NULL\n,[LastOrderYear] Int NULL\n,[ProductLine] NVarchar(50) NULL\n,[AddressLine1] NVarchar(60) NULL\n,[AddressLine2] NVarchar(60) NULL\n,[AnnualSales] Money NULL\n,[BankName] NVarchar(50) NULL\n,[MinPaymentType] TinyInt NULL\n,[MinPaymentAmount] Money NULL\n,[AnnualRevenue] Money NULL\n,[YearOpened] Int NULL\n) WITH (CLUSTERED COLUMNSTORE INDEX, DISTRIBUTION = ROUND_ROBIN)\n\nCREATE TABLE [SalesMigration].[DimSalesReason] ([SalesReasonKey] Int NOT NULL\n,[SalesReasonAlternateKey] Int NOT NULL\n,[SalesReasonName] NVarchar(50) NOT NULL\n,[SalesReasonReasonType] NVarchar(50) NOT NULL\n) WITH (CLUSTERED COLUMNSTORE INDEX, DISTRIBUTION = ROUND_ROBIN)\n\nCREATE TABLE [SalesMigration].[FactInternetSales] ([ProductKey] Int NOT NULL\n,[OrderDateKey] Int NOT NULL\n,[DueDateKey] Int NOT NULL\n,[ShipDateKey] Int NOT NULL\n,[CustomerKey] Int NOT NULL\n,[PromotionKey] Int NOT NULL\n,[CurrencyKey] Int NOT NULL\n,[SalesTerritoryKey] Int NOT NULL\n,[SalesOrderNumber] NVarchar(20) NOT NULL\n,[SalesOrderLineNumber] TinyInt NOT NULL\n,[RevisionNumber] TinyInt NOT NULL\n,[OrderQuantity] SmallInt NOT NULL\n,[UnitPrice] Money NOT NULL\n,[ExtendedAmount] Money NOT NULL\n,[UnitPriceDiscountPct] Float NOT NULL\n,[DiscountAmount] Float NOT NULL\n,[ProductStandardCost] Money NOT NULL\n,[TotalProductCost] Money NOT NULL\n,[SalesAmount] Money NOT NULL\n,[TaxAmt] Money NOT NULL\n,[Freight] Money NOT NULL\n,[CarrierTrackingNumber] NVarchar(25) NULL\n,[CustomerPONumber] NVarchar(25) NULL\n,[OrderDate] DateTime NULL\n,[DueDate] DateTime NULL\n,[ShipDate] DateTime NULL\n) WITH (CLUSTERED COLUMNSTORE INDEX, DISTRIBUTION = HASH([ProductKey]))\n\nCREATE TABLE [SalesMigration].[FactInternetSalesReason] ([SalesOrderNumber] NVarchar(20) NOT NULL\n,[SalesOrderLineNumber] TinyInt NOT NULL\n,[SalesReasonKey] Int NOT NULL\n) WITH (CLUSTERED COLUMNSTORE INDEX, DISTRIBUTION = ROUND_ROBIN)\n\nCREATE TABLE [SalesMigration].[FactProductInventory] ([ProductKey] Int NOT NULL\n,[DateKey] Int NOT NULL\n,[MovementDate] Date NOT NULL\n,[UnitCost] Money NOT NULL\n,[UnitsIn] Int NOT NULL\n,[UnitsOut] Int NOT NULL\n,[UnitsBalance] Int NOT NULL\n) WITH (CLUSTERED COLUMNSTORE INDEX, DISTRIBUTION = HASH([ProductKey]))\n\nCREATE TABLE [SalesMigration].[FactResellerSales] ([ProductKey] Int NOT NULL\n,[OrderDateKey] Int NOT NULL\n,[DueDateKey] Int NOT NULL\n,[ShipDateKey] Int NOT NULL\n,[ResellerKey] Int NOT NULL\n,[EmployeeKey] Int NOT NULL\n,[PromotionKey] Int NOT NULL\n,[CurrencyKey] Int NOT NULL\n,[SalesTerritoryKey] Int NOT NULL\n,[SalesOrderNumber] NVarchar(20) NOT NULL\n,[SalesOrderLineNumber] TinyInt NOT NULL\n,[RevisionNumber] TinyInt NULL\n,[OrderQuantity] SmallInt NULL\n,[UnitPrice] Money NULL\n,[ExtendedAmount] Money NULL\n,[UnitPriceDiscountPct] Float NULL\n,[DiscountAmount] Float NULL\n,[ProductStandardCost] Money NULL\n,[TotalProductCost] Money NULL\n,[SalesAmount] Money NULL\n,[TaxAmt] Money NULL\n,[Freight] Money NULL\n,[CarrierTrackingNumber] NVarchar(25) NULL\n,[CustomerPONumber] NVarchar(25) NULL\n,[OrderDate] DateTime NULL\n,[DueDate] DateTime NULL\n,[ShipDate] DateTime NULL\n) WITH (CLUSTERED COLUMNSTORE INDEX, DISTRIBUTION = HASH([ProductKey]))\n",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "wplussynapsedw",
+						"poolName": "wplussynapsedw"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/07_LoadDataUsingADF')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "/* 1. Manage Hub> Create linked Service \n\nLS_ADLSG2_asadatalakemarysynapse_NYC\n\n\n2. Go to the pipeline\n- Create two data sets (CSV and Synapse (with parameter))\n\n*/",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "master",
+						"poolName": "Built-in"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/08_CreateTableCopy')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "CREATE SCHEMA [NYCTaxi];\n\n\nIF NOT EXISTS (SELECT * FROM sys.objects WHERE NAME = 'TripsStg' AND TYPE = 'U')\nCREATE TABLE [NYCTaxi].[TripsStg]\n\t(\n\t VendorID nvarchar(30),\n\t tpep_pickup_datetime nvarchar(30),\n\t tpep_dropoff_datetime nvarchar(30),\n\t passenger_count nvarchar(30),\n\t trip_distance nvarchar(30),\n\t RatecodeID nvarchar(30),\n\t store_and_fwd_flag nvarchar(30),\n\t PULocationID nvarchar(30),\n\t DOLocationID nvarchar(30),\n\t payment_type nvarchar(30),\n\t fare_amount nvarchar(10),\n\t extra nvarchar(10),\n\t mta_tax nvarchar(10),\n\t tip_amount nvarchar(10),\n\t tolls_amount nvarchar(10),\n\t improvement_surcharge nvarchar(10),\n\t total_amount nvarchar(10)\n\t)\nWITH\n\t(\n\tDISTRIBUTION = ROUND_ROBIN,\n\t HEAP\n\t)\nGO",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "master",
+						"poolName": "Built-in"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/09_COPYStatement')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "\n\n\nCOPY INTO [NYCTaxi].[TripsStg]\nFROM 'https://asadatalakemarysynapse.blob.core.windows.net/blobroot/nyctaxistaging/fact/*.parquet'\nWITH\n(\n\tCREDENTIAL=(IDENTITY= 'Storage Account Key', SECRET='Fdnk0yeqCyV4DvzMJ0yGWGmLn33ooJ0hqCJDE9L7iVBRjaLp8JAJT9avwaLciBelxIsFwG5Z9OKqWxsAOfGF2g=='),\n\tFILE_TYPE = 'Parquet'\n\t,MAXERRORS = 0\n\t,IDENTITY_INSERT = 'OFF'\n\t)\nGO\n@.blob.core.windows.net\n\nCOPY INTO [NYCTaxi].[TripsStg]\nFROM 'https://asadatalakemarysynapse.blob.core.windows.net/blobroot/nyctaxistaging/fact/*.parquet'\nWITH\n(\n\tCREDENTIAL=(IDENTITY= 'Shared Access Signature', SECRET='?sv=2020-08-04&ss=bfqt&srt=sco&sp=rwdlacupx&se=2025-01-02T04:52:41Z&st=2022-03-14T19:52:41Z&spr=https&sig=X20J49nHcBxqCVZ7KBtrNI4FB3UWtE7vFf4iV55tnL8%3D'),\n\tFILE_TYPE = 'PARQUET'\n\t,MAXERRORS = 0\n\t,IDENTITY_INSERT = 'OFF'\n\t)\nGO\n\n\n",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "wplussynapsedw",
+						"poolName": "wplussynapsedw"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/10_CTAS')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "CREATE TABLE [NYCTaxi].[Trips]\nWITH  \n(DISTRIBUTION = HASH([PULocationID]),\nCLUSTERED COLUMNSTORE INDEX)\nAS SELECT\ncast([VendorID] as varchar(10)) as [VendorID],\n    cast([tpep_pickup_datetime] as date) as [tpep_pickup_date],\n    cast([tpep_dropoff_datetime] as date) as [tpep_dropoff_date],\n    cast([passenger_count] as int) as [passenger_count],\n    cast([trip_distance] as float) as [trip_distance],\n    cast([RateCodeID] as int) as [RateCodeID],\n    cast([store_and_fwd_flag] as varchar(3)) as [store_and_fwd_flag],\n    cast([PULocationID] as int ) as [PULocationID],\n    cast([DOLocationID] as int ) as [DOLocationID],\n    cast([payment_type] as int ) as [payment_type], \n    cast([fare_amount] as money ) as [fare_amount],\n    cast([extra] as money ) as [extra],\n    cast([mta_tax] as money ) as [mta_tax],\n    cast([tip_amount] as money ) as [tip_amount],\n    cast([tolls_amount] as money ) as [tolls_amount],\n    cast([improvement_surcharge] as money ) as [improvement_surcharge],\n    cast([total_amount] as money) as [total_amount]\nFROM [NYCTaxi].[TripsStg]\nGO;\n\n--Drop the TripsStg table\nDROP TABLE [NYCTaxi].[TripsStg]\nGO;\n\n--Row count: Notice this as we will incrementally load data in the next exercise using Polybase\nSELECT COUNT(1) as 'RowCount' FROM [NYCTaxi].[Trips]",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "master",
+						"poolName": "Built-in"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/11_0_PolybaseExternalObjectsDim')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "/* \n--Created before\nCREATE MASTER KEY;\n\n--Credential used to authenticate to External Data Source \nCREATE DATABASE SCOPED CREDENTIAL AzureStorageCredential\nWITH\n    IDENTITY = 'user',\n    SECRET = 'Fdnk0yeqCyV4DvzMJ0yGWGmLn33ooJ0hqCJDE9L7iVBRjaLp8JAJT9avwaLciBelxIsFwG5Z9OKqWxsAOfGF2g=='\n;\n\n--Describes where the data is located at a coarse grain\n--This will be on the nycstaging container that were created in Module 1's lab where the datasets are uploaded to Data Lake folders\nCREATE EXTERNAL DATA SOURCE NYTBlob\nWITH\n(\n    TYPE = Hadoop,\n    LOCATION = 'wasbs://blobroot@asadatalakemarysynapse.blob.core.windows.net/',\n\tCREDENTIAL = AzureStorageCredential\n);\n*/\n--File formats describes how the files are written\n--We will load one file which is a fact table. This will be an uncompressed file. \nCREATE EXTERNAL FILE FORMAT csvfact\nWITH (\n    FORMAT_TYPE = DELIMITEDTEXT,\n    FORMAT_OPTIONS ( \n\tFIELD_TERMINATOR = ',',\n        STRING_DELIMITER = '',\n        USE_TYPE_DEFAULT = False,\t\t\n\t\tFIRST_ROW = 3\n    )\n);\n\n--Dimension tables are in csv file having a pipe (|) character as delimiter.\nCREATE EXTERNAL FILE FORMAT csvdimension\nWITH (\n    FORMAT_TYPE = DELIMITEDTEXT,\n    FORMAT_OPTIONS ( \n\tFIELD_TERMINATOR = '|',\n        STRING_DELIMITER = '',\n        USE_TYPE_DEFAULT = False,\t\t\n\t\tFIRST_ROW = 2\n    )\n);\n\n\n--Create a schema for the staging/external tables\nCREATE SCHEMA [NYTaxiSTG];\n\n\n--External table creates a reference to the file in the blob storage, the table is not created in Synapse SQL Pool physically\n--The below external table will references only one .csv file as this will be loaded incrementally for December 2018 only.\nCREATE EXTERNAL TABLE [NYTaxiSTG].[Trips]\n(\n    [VendorID] varchar(10) NOT NULL,\n    [tpep_pickup_datetime] datetime NOT NULL,\n    [tpep_dropoff_datetime] datetime NOT NULL,\n    [passenger_count] int NOT NULL,\n    [trip_distance] float NOT NULL,\n    [RateCodeID] int NULL,\n    [store_and_fwd_flag] varchar(3) NULL,\n    [PULocationID] int NULL,\n    [DOLocationID] int NULL,\n    [payment_type] int NULL,\n    [fare_amount] money NULL,\n    [extra] money NULL,\n    [mta_tax] money NULL,\n    [tip_amount] money NULL,\n    [tolls_amount] money NULL,\n    [improvement_surcharge] money NULL,\n    [total_amount] money NULL\n)\nWITH\n(\n    LOCATION = 'nyctaxistaging/Fact/yellow_tripdata_2018-12.csv',\n    DATA_SOURCE = NYTBlob,\n    FILE_FORMAT = csvfact,\n    REJECT_TYPE = value,\n    REJECT_VALUE = 0\n);\n\n\n--The following statements creates external table reference to the csv files in Azure Data Lake for all the dimension tables\n\n-- NOTE: paths are case sensetive\n\nCREATE EXTERNAL TABLE [NYTaxiSTG].[StoreFwdFlag]\n(\n    [Flag] varchar(2) NOT NULL,\n    [Description] varchar(40) NOT NULL\n)\nWITH\n(\n    LOCATION = 'nyctaxistaging/Dimension/StoreFwdFlag.csv',\n    DATA_SOURCE = NYTBlob,\n    FILE_FORMAT = csvdimension,\n    REJECT_TYPE = value,\n    REJECT_VALUE = 0\n);\n\n\nCREATE EXTERNAL TABLE [NYTaxiSTG].[Vendor]\n(\n    [VendorID] int NOT NULL,\n    [Description] varchar(40) NOT NULL\n)\nWITH\n(\n    LOCATION = 'nyctaxistaging/Dimension/Vendor.csv',\n    DATA_SOURCE = NYTBlob,\n    FILE_FORMAT = csvdimension,\n    REJECT_TYPE = value,\n    REJECT_VALUE = 0\n);\n\nCREATE EXTERNAL TABLE [NYTaxiSTG].[Date]\n(\n    [Date] date NOT NULL,\n    [DateKey] int NOT NULL,\n\t[Month] varchar(15) NOT NULL,\n\t[Year] int NOT NULL,\n\t[MonthNo] int NOT NULL,\n\t[QuarterNo] int NOT NULL,\n\t[Quarter] varchar(5) NOT NULL,\n\t[MMM-YYYY] varchar(20) NOT NULL,\n\t[DayOfWeekNo] int NOT NULL,\n\t[DayOfWeek] varchar(11) NOT NULL,\n\t[Day] int\n)\nWITH\n(\n    LOCATION = 'nyctaxistaging/Dimension/Date.csv',\n    DATA_SOURCE = NYTBlob,\n    FILE_FORMAT = csvdimension,\n    REJECT_TYPE = value,\n    REJECT_VALUE = 0\n);\n\n\n",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "wplussynapsedw",
+						"poolName": "wplussynapsedw"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/11_1_PolybaseHashLoad')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "--Create Hash distributed table on Payment_type column\n--There are only 4 unique values for Payment_type in the .csv file. \n--The .csv file is being referenced through the external table [NYTaxiSTG].[Trips]\n--Cluster columnstore tables begin to achieve optimal compression once there is more than 60 million rows. \n--For small lookup tables, less than 60 million rows, consider using HEAP or clustered index for faster query performance.\n\n--use Master\nALTER DATABASE wplussynapsedw \nMODIFY (SERVICE_OBJECTIVE = 'DW500c');\n\nCREATE TABLE [NYCTaxi].[TripsHash]\nWITH\n(\n\theap,\n    DISTRIBUTION = HASH([Payment_type])\n)\nAS SELECT * FROM [NYTaxiSTG].[Trips]\nOPTION (LABEL = 'CTAS:HashPaymentType');\n\n--Table row count\nSELECT COUNT (*) FROM [NYCTaxi].[TripsHash]\n\n--Validate that there are only 4 unique values for Payment_type column\nSELECT DISTINCT [Payment_type] FROM [NYCTaxi].[TripsHash]\n\nSelect * \nFROM sys.dm_pdw_dms_workers dw\nJOIN sys.dm_pdw_exec_requests r \nON r.request_id = dw.request_id\nWHERE r.[label] = 'CTAS:HashPaymentType'\n\n\nSelect * \nFROM sys.dm_pdw_dms_workers dw\nJOIN sys.dm_pdw_exec_requests r \nON r.request_id = dw.request_id\nWHERE r.[label] = 'CTAS:HashPaymentType'\nand type = 'WRITER' and bytes_processed <> 0\n\n\n--use Master\nALTER DATABASE wplussynapsedw \nMODIFY (SERVICE_OBJECTIVE = 'DW100c');\n\n\n\n\n\n\n\n\n",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "wplussynapsedw",
+						"poolName": "wplussynapsedw"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/11_CreateSTGTablesForPipelineLoad')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "-- We want to load it with Copy , we don't need external table\nCREATE TABLE [NYTaxiSTG].[TaxiZones]\n(\n    [LocationID] int NOT NULL,\n    [Borough] varchar(30) NOT NULL,\n\t[Zone] varchar(100) NOT NULL,\n\t[service_zone] varchar(30) NOT NULL\n)\nwith \n(\ndistribution = ROUND_ROBIN ,\nHEAP\n);\n\n\n\n\n-- we want to load it with polybase, we need external table\n-- we don't need to create a staging table but we can\n\nCREATE EXTERNAL TABLE [NYTaxiSTG].[RateCode]\n(\n    [RateCodeID] int NOT NULL,\n    [Description] varchar(30) NOT NULL\n)\nWITH\n(\n    LOCATION = 'nyctaxistaging/Dimension/RateCode.csv',\n    DATA_SOURCE = NYTBlob,\n    FILE_FORMAT = csvdimension,\n    REJECT_TYPE = value,\n    REJECT_VALUE = 0\n);\n\n\n-- We want to use stored procedure\nCREATE TABLE [NYTaxiSTG].[PaymentType]\n(\n    [PaymentTypeID] varchar(40)  NULL,\n    [PaymentType] varchar(40) \n)\nwith \n(\ndistribution = ROUND_ROBIN ,\nHEAP\n);\n\n\n\nCREATE PROC [NYTaxiSTG].[sp_copyPaymentType]\nAS\nBEGIN\n COPY INTO [NYTaxiSTG].[PaymentType]\nFROM 'https://asadatalakemarysynapse.blob.core.windows.net/blobroot/nyctaxistaging/Dimension/PaymentType.csv'\nWITH\n(\n\tCREDENTIAL=(IDENTITY= 'Shared Access Signature', SECRET='?sv=2020-08-04&ss=bfqt&srt=sco&sp=rwdlacupx&se=2025-01-02T04:52:41Z&st=2022-03-14T19:52:41Z&spr=https&sig=X20J49nHcBxqCVZ7KBtrNI4FB3UWtE7vFf4iV55tnL8%3D'),\n\tFILE_TYPE = 'CSV'\n\t,MAXERRORS = 0\n\t,IDENTITY_INSERT = 'OFF'\n\t)\nEND\n\n",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "wplussynapsedw",
+						"poolName": "wplussynapsedw"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/PolybaseHashLoadMonitoring')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "--Monitor how the data is being read from external files and\n--how that data is being converted to SQL data type format and how it is being written to Synapse SQL Pool distributions\nSelect * \nFROM sys.dm_pdw_dms_workers dw\nJOIN sys.dm_pdw_exec_requests r \nON r.request_id = dw.request_id\nWHERE r.[label] = 'CTAS:HashPaymentType'\n\n\n--Monitor how many writers were used to distribute the data\nSelect * \nFROM sys.dm_pdw_dms_workers dw\nJOIN sys.dm_pdw_exec_requests r \nON r.request_id = dw.request_id\nWHERE r.[label] = 'CTAS:HashPaymentType'\nand type = 'WRITER' and bytes_processed <> 0",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "wplussynapsedw",
+						"poolName": "wplussynapsedw"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/PolybaseIncrementalLoad')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "-- Incrementally load the fact table Trips with Polybase\nINSERT INTO [NYCTaxi].[Trips]\nSELECT cast([VendorID] as varchar(10)) as [VendorID],\n    cast([tpep_pickup_datetime] as date) as [tpep_pickup_date],\n    cast([tpep_dropoff_datetime] as date) as [tpep_dropoff_date],\n    cast([passenger_count] as int) as [passenger_count],\n    cast([trip_distance] as float) as [trip_distance],\n    cast([RateCodeID] as int) as [RateCodeID],\n    cast([store_and_fwd_flag] as varchar(3)) as [store_and_fwd_flag],\n    cast([PULocationID] as int ) as [PULocationID],\n    cast([DOLocationID] as int ) as [DOLocationID],\n    cast([payment_type] as int ) as [payment_type], \n    cast([fare_amount] as money ) as [fare_amount],\n    cast([extra] as money ) as [extra],\n    cast([mta_tax] as money ) as [mta_tax],\n    cast([tip_amount] as money ) as [tip_amount],\n    cast([tolls_amount] as money ) as [tolls_amount],\n    cast([improvement_surcharge] as money ) as [improvement_surcharge],\n    cast([total_amount] as money) as [total_amount]\n FROM [NYTaxiSTG].[Trips]\n OPTION (LABEL='Trips:PolybaseIncrementalLoad')",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "wplussynapsedw",
+						"poolName": "wplussynapsedw"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/PolybaseLoading')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "--Load data from external tables to managed tables into Synapse SQL Pool\n\n--First load all the dimension tables\nCREATE  TABLE [NYCTaxi].[TaxiZones]\nWITH\n(\n\tCLUSTERED INDEX ([LocationID]),\n    DISTRIBUTION = HASH(LocationID)\n)\nAS SELECT * FROM [NYTaxiSTG].[TaxiZones]\nOPTION (LABEL = 'CTAS:TaxiZones')\n;\n\n\nCREATE TABLE [NYCTaxi].[PaymentType]\nWITH\n(\n\tCLUSTERED INDEX ([PaymentType]),\n    DISTRIBUTION = ROUND_ROBIN\n)\nAS SELECT * FROM [NYTaxiSTG].[PaymentType]\nOPTION (LABEL = 'CTAS:PaymentType')\n;\n\nCREATE TABLE [NYCTaxi].[Vendor]\nWITH\n(\n\tCLUSTERED INDEX ([VendorID]),\n    DISTRIBUTION = ROUND_ROBIN\n)\nAS SELECT * FROM [NYTaxiSTG].[Vendor]\nOPTION (LABEL = 'CTAS:Vendor')\n;",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "master",
+						"poolName": "Built-in"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/PolybaseMonitoring')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": " SELECT DISTINCT ew.*, r.command\nFROM[sys].[dm_pdw_dms_external_work] ew \nJOIN sys.dm_pdw_exec_requests r \nON r.request_id = ew.request_id\nJOIN Sys.dm_pdw_request_steps s\nON r.request_id = s.request_id\nWHERE r.[label] = 'Trips:PolybaseIncrementalLoad'\nORDER BY  input_name, dms_step_index",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "master",
+						"poolName": "Built-in"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/SQL script 2')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "-- This is auto-generated code\nSELECT\n    TOP 100 *\nFROM\n    OPENROWSET(\n        BULK 'https://asadatalakemarysynapse.dfs.core.windows.net/blobroot/nyctaxistaging/Dimension/PaymentType.csv',\n        FORMAT = 'CSV',\n        PARSER_VERSION = '2.0'\n    ) AS [result]\n",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "master",
+						"poolName": "Built-in"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/SQL script 3')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "-- This is auto-generated code\nSELECT\n    TOP 100 *\nFROM\n    OPENROWSET(\n        BULK 'https://asadatalakemarysynapse.dfs.core.windows.net/blobroot/nyctaxistaging/Fact/yellow_tripdata_2018-01.parquet',\n        FORMAT = 'PARQUET'\n    ) AS [result]\n",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "master",
+						"poolName": "Built-in"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/Serverless demo')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "/* As you can see you are connected to the built in Sql, the default database is master */\n\n-- 1. Quick data exploration\n\n-- This is auto-generated code, that you can generate it by right click (json, csv, Parquet)\nSELECT\n    TOP 100 *\nFROM\n    OPENROWSET(\n        BULK 'https://asadatalakemarysynapse.dfs.core.windows.net/blobroot/nyctaxistaging/Fact/yellow_tripdata_2018-01.parquet',\n        FORMAT = 'PARQUET'\n    ) AS [result]\n\n-- You can define result schema at query time in WITH clause, No need for external format files, and improve performance by column elimination for parquet\n\nSELECT\n    TOP 100 *\nFROM\n    OPENROWSET(\n        BULK 'https://asadatalakemarysynapse.dfs.core.windows.net/blobroot/nyctaxistaging/Dimension/PaymentType.csv',\n        FORMAT = 'CSV',\n        PARSER_VERSION = '2.0',\n\t    FIELDTERMINATOR = '|',\n        FIRSTROW=2\n        )\n        WITH(\n            id INT,\n            paymentType varchar(20)\n        )\n    AS [result]\n\n -- access data from multiple files  , and apply transformation  \n\nSELECT YEAR(tpep_pickup_datetime) as [year],\n              SUM(cast(passenger_count as int)) AS passengers_total,\n              COUNT(*) AS [rides_total] \nFROM OPENROWSET( \n           BULK 'https://asadatalakemarysynapse.dfs.core.windows.net/blobroot/nyctaxistaging/Fact/*.parquet', \n           FORMAT = 'PARQUET')  AS nyc \nGROUP BY YEAR(tpep_pickup_datetime) \nORDER BY YEAR(tpep_pickup_datetime) \n\n\n--2. Logical Data Warehouse\n-- In this part with build logical relational layer on top of physical files in Azure Storage. you can create other database with create database syntax\n-- serverless has only metadata  data stores in the storage\n\nCreate Database NYCTaxi_Serverless_DW1;\n\nUSE NYCTaxi_Serverless_DW\nGO\n\nDROP VIEW IF EXISTS  TripCountView\nGO\nCREATE VIEW TripCountView AS\nSELECT YEAR(tpep_pickup_datetime) as [year],\n              SUM(cast(passenger_count as int)) AS passengers_total,\n              COUNT(*) AS [rides_total] \nFROM OPENROWSET( \n           BULK 'https://asadatalakemarysynapse.dfs.core.windows.net/blobroot/nyctaxistaging/Fact/*.parquet', \n           FORMAT = 'PARQUET')  AS nyc \nGROUP BY YEAR(tpep_pickup_datetime) \n\nselect * from  TripCountView\n-- a.create Masterkey\n-- b.create databasescoped credentials\n-- c.create file format\n-- d.create external tables \nCREATE MASTER KEY;\n\n--Credential used to authenticate to External Data Source \nCREATE DATABASE SCOPED CREDENTIAL AzureStorageCredential\nWITH\n    IDENTITY = 'Managed Identity';\n   \n--Describes where the data is located at a coarse grain\n--This will be on the nycstaging container that were created in Module 1's lab where the datasets are uploaded to Data Lake folders\nCREATE EXTERNAL DATA SOURCE NYTBlob\nWITH\n(\n    LOCATION = 'wasbs://blobroot@asadatalakemarysynapse.blob.core.windows.net/',\n\tCREDENTIAL = AzureStorageCredential\n);\n\n--File formats describes how the files are written\n--We will load one file which is a fact table. This will be an uncompressed file. \nCREATE EXTERNAL FILE FORMAT csvfact\nWITH (\n    FORMAT_TYPE = DELIMITEDTEXT,\n    FORMAT_OPTIONS ( \n\tFIELD_TERMINATOR = ',',\n        STRING_DELIMITER = '',\n        USE_TYPE_DEFAULT = False,\t\t\n\t\tFIRST_ROW = 3\n    )\n);\n-- You can't define not null/null columns\nCREATE EXTERNAL TABLE [Fact_Trips]\n(\n    [VendorID] varchar(10) ,\n    [tpep_pickup_datetime] datetime,\n    [tpep_dropoff_datetime] datetime ,\n    [passenger_count] int ,\n    [trip_distance] float ,\n    [RateCodeID] int ,\n    [store_and_fwd_flag] varchar(3) ,\n    [PULocationID] int ,\n    [DOLocationID] int ,\n    [payment_type] int ,\n    [fare_amount] money ,\n    [extra] money ,\n    [mta_tax] money ,\n    [tip_amount] money ,\n    [tolls_amount] money ,\n    [improvement_surcharge] money ,\n    [total_amount] money \n)\nWITH\n(\n    LOCATION = 'nyctaxistaging/Fact/yellow_tripdata_2018-12.csv',\n    DATA_SOURCE = NYTBlob,\n    FILE_FORMAT = csvfact\n);\n\n-- create statistics\nCREATE STATISTICS stat_PULocationID ON Fact_Trips(PULocationID);\n\n-- grant permission\n\n-- select \nselect top(10) * from fact_trips\n\n--3. Easy data transformation\n-- Create external tables as select (CETAS) enables you to easily transform data \n-- and store the results of query on Azure storage e.g. convert csv file to parquet\n\nCREATE EXTERNAL FILE FORMAT csvdimension\nWITH (\n    FORMAT_TYPE = DELIMITEDTEXT,\n    FORMAT_OPTIONS ( \n\tFIELD_TERMINATOR = '|',\n        STRING_DELIMITER = '',\n        USE_TYPE_DEFAULT = False,\t\t\n\t\tFIRST_ROW = 2\n    )\n);\n\nCREATE EXTERNAL FILE FORMAT ParquetFormat\n WITH (  FORMAT_TYPE = PARQUET );\n\n\nCREATE EXTERNAL TABLE [Vendor_csv]\n(\n    [VendorID] int ,\n    [Description] varchar(40) \n)\nWITH\n(\n    LOCATION = 'nyctaxistaging/Dimension/Vendor.csv',\n    DATA_SOURCE = NYTBlob,\n    FILE_FORMAT = csvdimension\n);\n\n\nCREATE EXTERNAL TABLE vendor_parquet  \nWITH(   \n        LOCATION = 'nyctaxistaging/Dimension',  \n        DATA_SOURCE = NYTBlob,  \n        FILE_FORMAT = ParquetFormat )  \nAS SELECT VendorID,Description\nFROM Vendor_csv\n\n\n\n\n-- Automatic syncing of Spark tables\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "wplussynapsedw",
+						"poolName": "wplussynapsedw"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/SQLPool01')]",
+			"type": "Microsoft.Synapse/workspaces/sqlPools",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"collation": "SQL_Latin1_General_CP1_CI_AS",
+				"maxSizeBytes": 263882790666240,
+				"annotations": []
+			},
+			"dependsOn": [],
+			"location": "canadacentral"
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/wplussynapsedw')]",
+			"type": "Microsoft.Synapse/workspaces/sqlPools",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"collation": "SQL_Latin1_General_CP1_CI_AS",
+				"maxSizeBytes": 263882790666240,
+				"annotations": []
+			},
+			"dependsOn": [],
+			"location": "canadacentral"
+		}
+	]
+}

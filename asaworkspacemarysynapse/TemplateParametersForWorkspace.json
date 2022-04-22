@@ -1,0 +1,48 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"workspaceName": {
+			"value": "asaworkspacemarysynapse"
+		},
+		"asadatalakemarysynapse_accountKey": {
+			"value": ""
+		},
+		"asastoremarysynapse_connectionString": {
+			"value": ""
+		},
+		"asaworkspacemarysynapse-WorkspaceDefaultSqlServer_connectionString": {
+			"value": ""
+		},
+		"sqlpool01_connectionString": {
+			"value": ""
+		},
+		"sqlpool01_highperf_connectionString": {
+			"value": ""
+		},
+		"sqlpool01_import01_connectionString": {
+			"value": ""
+		},
+		"sqlpool01_workload01_connectionString": {
+			"value": ""
+		},
+		"sqlpool01_workload02_connectionString": {
+			"value": ""
+		},
+		"LS_ADLSG2_asadatalakemarysynapse_NYC_properties_typeProperties_url": {
+			"value": "https://asadatalakemarysynapse.dfs.core.windows.net"
+		},
+		"LS_demo_ADSl_properties_typeProperties_url": {
+			"value": "https://asadatalakemarysynapse.dfs.core.windows.net"
+		},
+		"asadatalakemarysynapse_properties_typeProperties_url": {
+			"value": "https://asadatalakemarysynapse.dfs.core.windows.net"
+		},
+		"asakeyvaultmarysynapse_properties_typeProperties_baseUrl": {
+			"value": "https://asakeyvaultmarysynapse.vault.azure.net/"
+		},
+		"asaworkspacemarysynapse-WorkspaceDefaultStorage_properties_typeProperties_url": {
+			"value": "https://asadatalakemarysynapse.dfs.core.windows.net"
+		}
+	}
+}
