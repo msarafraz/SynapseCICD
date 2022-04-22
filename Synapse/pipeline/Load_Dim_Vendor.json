@@ -3,7 +3,7 @@
 	"properties": {
 		"activities": [
 			{
-				"name": "Copy Dim Vendor",
+				"name": "Copy Dim Vendor1",
 				"type": "Copy",
 				"dependsOn": [],
 				"policy": {
